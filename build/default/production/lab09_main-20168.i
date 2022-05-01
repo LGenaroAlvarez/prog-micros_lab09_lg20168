@@ -2747,43 +2747,56 @@ extern int printf(const char *, ...);
 
 # 1 "C:\\Program Files\\Microchip\\xc8\\v2.35\\pic\\include\\c90\\stdint.h" 1 3
 # 32 "lab09_main-20168.c" 2
-# 44 "lab09_main-20168.c"
+# 50 "lab09_main-20168.c"
 unsigned short CCPR = 0;
 unsigned short CCPR_b = 0;
+uint8_t cont_led;
+int pwm_led;
 
 
 void setup(void);
+
+void tmr0_setup(void);
+
 
 unsigned short interpol(uint8_t val, uint8_t pot_min, uint8_t pot_max,
         unsigned short pwm_min, unsigned short pwm_max);
 
 
 void setup(void){
-    ANSEL = 0b00000011;
+    ANSEL = 0b00000111;
     ANSELH = 0;
 
-    TRISA = 0b00000011;
+    TRISA = 0b00000111;
     PORTA = 0;
+    PORTC = 0;
 
 
-    OSCCONbits.IRCF = 0b0011;
+    INTCONbits.GIE = 1;
+    INTCONbits.PEIE = 1;
+    INTCONbits.T0IE = 1;
+    PIR1bits.ADIF = 0;
+    PIE1bits.ADIE = 1;
+    INTCONbits.T0IF = 0;
+
+
+    OSCCONbits.IRCF = 0b0110;
     OSCCONbits.SCS = 1;
 
 
-    ADCON0bits.ADCS = 0b01;
-
+    ADCON0bits.ADCS = 0b10;
     ADCON1bits.VCFG0 = 0;
-    ADCON1bits.VCFG1 = 1;
+    ADCON1bits.VCFG1 = 0;
 
     ADCON0bits.CHS = 0b0000;
     ADCON1bits.ADFM = 0;
     ADCON0bits.ADON = 1;
-    _delay((unsigned long)((40)*(500000/4000000.0)));
+    _delay((unsigned long)((320)*(4000000/4000000.0)));
 
 
     TRISCbits.TRISC2 = 1;
     TRISCbits.TRISC1 = 1;
-    PR2 = 156;
+    PR2 = 249;
 
 
     CCP1CON = 0;
@@ -2792,11 +2805,11 @@ void setup(void){
     CCP1CONbits.CCP1M = 0b1100;
     CCP2CONbits.CCP2M = 0b1100;
 
-    CCPR1L = 125>>2;
-    CCP1CONbits.DC1B = 125 & 0b11;
-    CCPR2L = 125>>2;
-    CCP2CONbits.DC2B0 = 125 & 0b01;
-    CCP2CONbits.DC2B1 = 125 & 0b10;
+    CCPR1L = 250>>2;
+    CCP1CONbits.DC1B = 250 & 0b11;
+    CCPR2L = 250>>2;
+    CCP2CONbits.DC2B0 = 250 & 0b01;
+    CCP2CONbits.DC2B1 = 250 & 0b10;
 
 
     T2CONbits.T2CKPS = 0b11;
@@ -2805,16 +2818,26 @@ void setup(void){
     while(!PIR1bits.TMR2IF);
     PIR1bits.TMR2IF = 0;
 
+    TRISCbits.TRISC3 = 0;
     TRISCbits.TRISC2 = 0;
     TRISCbits.TRISC1 = 0;
 
-
-    INTCONbits.GIE = 1;
-    INTCONbits.PEIE = 1;
-    PIE1bits.ADIE = 1;
-    PIR1bits.ADIF = 0;
     return;
 }
+
+
+void tmr0_setup(void){
+    OPTION_REGbits.T0CS = 0;
+    OPTION_REGbits.PSA = 0;
+    OPTION_REGbits.PS0 = 0;
+    OPTION_REGbits.PS1 = 0;
+    OPTION_REGbits.PS2 = 0;
+
+    INTCONbits.T0IF = 0;
+    TMR0 = 249;
+    return;
+}
+
 
 unsigned short interpol(uint8_t val, uint8_t pot_min, uint8_t pot_max,
         unsigned short pwm_min, unsigned short pwm_max){
@@ -2828,35 +2851,57 @@ unsigned short interpol(uint8_t val, uint8_t pot_min, uint8_t pot_max,
 void __attribute__((picinterrupt(("")))) isr(void){
     if (PIR1bits.ADIF){
         if (ADCON0bits.CHS == 0){
-            CCPR = interpol(ADRESH, 0, 255, 31, 63);
+            CCPR = interpol(ADRESH, 0, 255, 100, 650);
             CCPR1L = (uint8_t)(CCPR>>2);
             CCP1CONbits.DC1B = CCPR & 0b11;
         }
 
         else if (ADCON0bits.CHS == 1){
-            CCPR_b = interpol(ADRESH, 0, 255, 31, 63);
+            CCPR_b = interpol(ADRESH, 0, 255, 100, 650);
             CCPR2L = (uint8_t)(CCPR_b>>2);
-            CCP2CONbits.DC2B0 = 125 & 0b01;
-            CCP2CONbits.DC2B1 = 125 & 0b10;
+            CCP2CONbits.DC2B0 = CCPR_b & 0b01;
+            CCP2CONbits.DC2B1 = CCPR_b & 0b10;
+        }
+
+        else if (ADCON0bits.CHS == 2){
+            pwm_led = ADRESH;
         }
         PIR1bits.ADIF = 0;
     }
-    return;
+
+    if(INTCONbits.T0IF){
+        cont_led++;
+
+        if (cont_led <= pwm_led){
+            PORTCbits.RC3 = 1;
+        }
+        else{
+            PORTCbits.RC3 = 0;
+        }
+        INTCONbits.T0IF = 0;
+        TMR0 = 249;
+    }
 }
 
 void main(void) {
 
     setup();
-
+    tmr0_setup();
     while (1){
         if (ADCON0bits.GO == 0){
             if (ADCON0bits.CHS == 0){
-                ADCON0bits.CHS = 0b0001;
+                ADCON0bits.CHS = 1;
+                _delay((unsigned long)((40)*(4000000/4000000.0)));
             }
             else if (ADCON0bits.CHS == 1){
-                ADCON0bits.CHS = 0b0000;
+                ADCON0bits.CHS = 2;
+                _delay((unsigned long)((40)*(4000000/4000000.0)));
             }
-            _delay((unsigned long)((40)*(500000/4000000.0)));
+            else if (ADCON0bits.CHS == 2){
+                ADCON0bits.CHS = 0;
+                _delay((unsigned long)((40)*(4000000/4000000.0)));
+            }
+            _delay((unsigned long)((40)*(4000000/4000000.0)));
             ADCON0bits.GO = 1;
         }
     }
