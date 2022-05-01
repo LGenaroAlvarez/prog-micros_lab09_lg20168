@@ -32,30 +32,30 @@
 #include <stdint.h>
 
 //DEFINICION DE FRECUENCIA PARA DELAY
-#define _XTAL_FREQ 4000000       // 4MHz
+#define _XTAL_FREQ 4000000          // FRECUENCIA PARA DELAYS (4MHz)
 
 //DEFINICIONES GENERALES
-#define tmr0_val 249            // PARA INTERRUPCIONES CADA 0.015us
+#define tmr0_val 249                // PARA INTERRUPCIONES CADA 0.015us
 
 //DEFINICIONES GENERALES
-#define POT_MIN 0               // VALOR MINIMO DE ENTRADA AL ADC POR POTENCIOMETRO
-#define POT_MAX 255             // VALOR MAXIMO DE ENTRADA AL ADC POR POTENCIOMETRO
-#define PWM_MIN 100              // VALOR MINIMO PARA PWM (0.4mS) PARA SERVO
-#define PWM_MAX 650              // VALOR MAXIMO PARA PWM (2.4mS) PARA SERVO
+#define POT_MIN 0                   // VALOR MINIMO DE ENTRADA AL ADC POR POTENCIOMETRO
+#define POT_MAX 255                 // VALOR MAXIMO DE ENTRADA AL ADC POR POTENCIOMETRO
+#define PWM_MIN 100                 // VALOR MINIMO PARA PWM (0.4mS) PARA SERVO
+#define PWM_MAX 650                 // VALOR MAXIMO PARA PWM (2.4mS) PARA SERVO
 
 //DEFINICION DE ALIAS PARA PINES
-#define fake_pwm PORTCbits.RC3
+#define fake_pwm PORTCbits.RC3  
 
 //VARIABLES GLOBALES
-unsigned short CCPR = 0;        // VARIABLE PARA CCPR1
-unsigned short CCPR_b = 0;      // VARIABLE PARA CCPR2
-uint8_t cont_led;
-int pwm_led;
+unsigned short CCPR = 0;            // VARIABLE PARA CCPR1
+unsigned short CCPR_b = 0;          // VARIABLE PARA CCPR2
+uint8_t cont_led;                   // VARIABLE PARA CONTEO DE COMPARACION PARA SENAL PSEUDO-PWM
+int pwm_led;                        // VARIABLE PARA ALMACENAR VALOR DE ADC POT3 PARA PSEUDO-PWM
 
 //PROTO FUNCIONES
-void setup(void);               // FUNCION DE SETUP
+void setup(void);                   // FUNCION DE SETUP
 
-void tmr0_setup(void);          // FUNCION DE TMR0
+void tmr0_setup(void);              // FUNCION DE TMR0
 
 // FUNCION PARA INTERPOLACION
 unsigned short interpol(uint8_t val, uint8_t pot_min, uint8_t pot_max,
@@ -63,77 +63,76 @@ unsigned short interpol(uint8_t val, uint8_t pot_min, uint8_t pot_max,
 
 //CONFIGURACION PRINCIPAL
 void setup(void){
-    ANSEL = 0b00000111;         // PORTA AN0, AN1 y AN2 COMO ANALOGICO, RESTO COMO DIGITALES
-    ANSELH = 0;                 // DEMAS PUERTOS COMO DIGITALES
+    ANSEL = 0b00000111;             // PORTA AN0, AN1 y AN2 COMO ANALOGICO, RESTO COMO DIGITALES
+    ANSELH = 0;                     // DEMAS PUERTOS COMO DIGITALES
 
-    TRISA = 0b00000111;         // PORTA AN0 AN1 y AN2 COMO ENTRADA, RESTO COMO SALIDA
-    PORTA = 0;                  // LIMPIEZA DEL PORTA
-    PORTC = 0;                  // LIMPIEZA DEL PORTC
+    TRISA = 0b00000111;             // PORTA AN0 AN1 y AN2 COMO ENTRADA, RESTO COMO SALIDA
+    PORTA = 0;                      // LIMPIEZA DEL PORTA
+    PORTC = 0;                      // LIMPIEZA DEL PORTC
 
     //CONFIG DE INTERRUPCIONES
-    INTCONbits.GIE = 1;         // HABILITAR INTERRUPCIONES GLOBALES
-    INTCONbits.PEIE = 1;        // HABILITAR INTERRUPCIONES EN PERIFERICOS
-    INTCONbits.T0IE = 1;        // HABILITAR INTERRUPCIONES DE TMR0
-    PIR1bits.ADIF = 0;          // LIMPIEZA DE BANDERA DE INTERRUPCION DE ADC
-    PIE1bits.ADIE = 1;          // HABILITAR INTERRUPCION DE ADC
-    INTCONbits.T0IF = 0;        // LIMPIAR BANDERA DE INTERRUPCION EN TMR0
+    INTCONbits.GIE = 1;             // HABILITAR INTERRUPCIONES GLOBALES
+    INTCONbits.PEIE = 1;            // HABILITAR INTERRUPCIONES EN PERIFERICOS
+    INTCONbits.T0IE = 1;            // HABILITAR INTERRUPCIONES DE TMR0
+    PIR1bits.ADIF = 0;              // LIMPIEZA DE BANDERA DE INTERRUPCION DE ADC
+    PIE1bits.ADIE = 1;              // HABILITAR INTERRUPCION DE ADC
+    INTCONbits.T0IF = 0;            // LIMPIAR BANDERA DE INTERRUPCION EN TMR0
     
     //OSCCONFIC
-    OSCCONbits.IRCF = 0b0110;   // FRECUENCIA DE OSCILADOR INTERNO (4MHz)
-    OSCCONbits.SCS  = 1;        // RELOJ INTERNO
+    OSCCONbits.IRCF = 0b0110;       // FRECUENCIA DE OSCILADOR INTERNO (4MHz)
+    OSCCONbits.SCS  = 1;            // RELOJ INTERNO
 
     //ADC CONFIG
-    ADCON0bits.ADCS = 0b10;     // FOSC/32
-    ADCON1bits.VCFG0 = 0;       // USO DE VDD COMO VOLTAJE DE REFERENCIA INTERNO
-    ADCON1bits.VCFG1 = 0;       // USO DE VSS COMO VOLTAJE DE REFERENCIA INTERNO
+    ADCON0bits.ADCS = 0b10;         // FOSC/32
+    ADCON1bits.VCFG0 = 0;           // USO DE VDD COMO VOLTAJE DE REFERENCIA INTERNO
+    ADCON1bits.VCFG1 = 0;           // USO DE VSS COMO VOLTAJE DE REFERENCIA INTERNO
 
-    ADCON0bits.CHS = 0b0000;    // SELECCION DE PORTA PIN0 (AN0) COMO ENTRADA DE ADC
-    ADCON1bits.ADFM = 0;        // FORMATO DE BITS JUSTIFICADOS A LA IZQUIERDA
-    ADCON0bits.ADON = 1;        // HABILITACION DE MODULO DE ADC
-    __delay_us(320);
+    ADCON0bits.CHS = 0b0000;        // SELECCION DE PORTA PIN0 (AN0) COMO ENTRADA DE ADC
+    ADCON1bits.ADFM = 0;            // FORMATO DE BITS JUSTIFICADOS A LA IZQUIERDA
+    ADCON0bits.ADON = 1;            // HABILITACION DE MODULO DE ADC
+    __delay_us(320);                // TIEMPO DE LECTURA
 
     //PWM CONFIG
-    TRISCbits.TRISC2 = 1;       // CCP1 COMO ENTRADA (SALIDA DESABILITADA)
-    TRISCbits.TRISC1 = 1;       // CCP2 COMO ENTRADA (SALIDA DESABILITADA)
-    PR2 = 249;                  // PERIODO DE TMR2 EN 4mS
+    TRISCbits.TRISC2 = 1;           // CCP1 COMO ENTRADA (SALIDA DESABILITADA)
+    TRISCbits.TRISC1 = 1;           // CCP2 COMO ENTRADA (SALIDA DESABILITADA)
+    PR2 = 249;                      // PERIODO DE TMR2 EN 4mS
 
     //CCP CONFIG
-    CCP1CON = 0;                    //
-    CCP2CON = 0;                    //
-    CCP1CONbits.P1M = 0;            //
-    CCP1CONbits.CCP1M = 0b1100;     //
-    CCP2CONbits.CCP2M = 0b1100;     //
+    CCP1CON = 0;                    // CCP1 APAGADO
+    CCP2CON = 0;                    // CCP2 APAGADO
+    CCP1CONbits.P1M = 0;            // CAMBIO DE MODO A "SINGLE OUTPUT"
+    CCP1CONbits.CCP1M = 0b1100;     // PWM PARA CCP1
+    CCP2CONbits.CCP2M = 0b1100;     // PWM PARA CCP2
 
-    CCPR1L = 250>>2;                //
+    CCPR1L = 250>>2;                // CONFIGURACION DE ANCHO DE PULSO PARA CCP1 Y CCP2
     CCP1CONbits.DC1B = 250 & 0b11;  //
     CCPR2L = 250>>2;                //
     CCP2CONbits.DC2B0 = 250 & 0b01; //
     CCP2CONbits.DC2B1 = 250 & 0b10; //
 
 
-    T2CONbits.T2CKPS = 0b11;        //
-    PIR1bits.TMR2IF = 0;            //
-    T2CONbits.TMR2ON = 1;           //
-    while(!PIR1bits.TMR2IF);        //
-    PIR1bits.TMR2IF = 0;            //
+    T2CONbits.T2CKPS = 0b11;        // RPESCALER DEL TMR2 EN 1:16
+    PIR1bits.TMR2IF = 0;            // LIMPIEZA DE BANDERA DE INTERRUPCION DE TMR2
+    T2CONbits.TMR2ON = 1;           // TMR2 ENCENDIDO
+    while(!PIR1bits.TMR2IF);        // CICLO INDIVIDUAL DE TMR2 EN ESPERA
+    PIR1bits.TMR2IF = 0;            // LIMPIEZA DE BANDERA DE INTERRUPCION DE TMR2
 
-    TRISCbits.TRISC3 = 0;           //
-    TRISCbits.TRISC2 = 0;           //
-    TRISCbits.TRISC1 = 0;           //
-
+    TRISCbits.TRISC3 = 0;           // HABILITAR SALIDA EN RC3
+    TRISCbits.TRISC2 = 0;           // HABILITAR SALIDA DE PWM EN RC2
+    TRISCbits.TRISC1 = 0;           // HABILITAR SALIDA DE PWM EN RC1
     return;
 }
 
 //CONFIGURACION TMR0
 void tmr0_setup(void){
-    OPTION_REGbits.T0CS = 0;    // UTILIZAR CICLO INTERNO
-    OPTION_REGbits.PSA = 0;     // CAMBIAR PRESCALER A TMR0
-    OPTION_REGbits.PS0 = 0;     // COLOCAR PRESCALER EN 1:2
-    OPTION_REGbits.PS1 = 0;     //
-    OPTION_REGbits.PS2 = 0;     //
+    OPTION_REGbits.T0CS = 0;        // UTILIZAR CICLO INTERNO
+    OPTION_REGbits.PSA = 0;         // CAMBIAR PRESCALER A TMR0
+    OPTION_REGbits.PS0 = 0;         // COLOCAR PRESCALER EN 1:2
+    OPTION_REGbits.PS1 = 0;         //
+    OPTION_REGbits.PS2 = 0;         //
 
-    INTCONbits.T0IF = 0;        // LIMPIAR BANDERA DE INTERRUPCION EN TMR0
-    TMR0 = tmr0_val;            // VALOR DE TMR0
+    INTCONbits.T0IF = 0;            // LIMPIAR BANDERA DE INTERRUPCION EN TMR0
+    TMR0 = tmr0_val;                // VALOR DE TMR0
     return;
 }
 
@@ -148,37 +147,37 @@ unsigned short interpol(uint8_t val, uint8_t pot_min, uint8_t pot_max,
 
 //INTERRUPCIONES
 void __interrupt() isr(void){
-    if (PIR1bits.ADIF){         // REVISAR INTERRUPCION DE ADC
-        if (ADCON0bits.CHS == 0){   // REVISAR SI ESTA ACTIVADO AN0
-            CCPR = interpol(ADRESH, POT_MIN, POT_MAX, PWM_MIN, PWM_MAX);    // EJECUCION DE INTERPOLACION
-            CCPR1L = (uint8_t)(CCPR>>2);        //
-            CCP1CONbits.DC1B = CCPR & 0b11;     //
+    if (PIR1bits.ADIF){                                                     // REVISAR INTERRUPCION DE ADC
+        if (ADCON0bits.CHS == 0){                                           // REVISAR SI ESTA ACTIVADO AN0
+            CCPR = interpol(ADRESH, POT_MIN, POT_MAX, PWM_MIN, PWM_MAX);    // EJECUCION DE INTERPOLACION PARA ANCHO DE PULSO
+            CCPR1L = (uint8_t)(CCPR>>2);                                    // ASIGNAR AL CPR1L LOS 8 BITS MAS SIGNIFICATIVOS
+            CCP1CONbits.DC1B = CCPR & 0b11;                                 // ASIGNAR AL DC1B LOS 2 BITS MENOS SIGNIFICATIVOS
         }
 
-        else if (ADCON0bits.CHS == 1){
-            CCPR_b = interpol(ADRESH, POT_MIN, POT_MAX, PWM_MIN, PWM_MAX);  //
-            CCPR2L = (uint8_t)(CCPR_b>>2);      //
-            CCP2CONbits.DC2B0 = CCPR_b & 0b01;     //
-            CCP2CONbits.DC2B1 = CCPR_b & 0b10;     //
+        else if (ADCON0bits.CHS == 1){                                      // REVISAR SI ESTA ACTIVADO AN1
+            CCPR_b = interpol(ADRESH, POT_MIN, POT_MAX, PWM_MIN, PWM_MAX);  // EJECUCION DE INTERPOLACION PARA ANCHO DE PULSO
+            CCPR2L = (uint8_t)(CCPR_b>>2);                                  // ASIGNAR AL CPR2L LOS 8 BITS MAS SIGNIFICATIVOS
+            CCP2CONbits.DC2B0 = CCPR_b & 0b01;                              // ASIGNAR AL DC2B0 Y DC2B1 LOS 2 BITS MENOS SIGNIFICATIVOS
+            CCP2CONbits.DC2B1 = CCPR_b & 0b10;                              //
         }
 
-        else if (ADCON0bits.CHS == 2){
-            pwm_led = ADRESH;   // VALOR DE POT3 PARA PWM DEL LED
+        else if (ADCON0bits.CHS == 2){                                      // REVISAR SI ESTA ACTIVADO AN2
+            pwm_led = ADRESH;                                               // VALOR DE POT3 PARA PWM DEL LED
         }
-        PIR1bits.ADIF = 0;      // LIMPIEZA DE BANDERA DE INTERRUPCION ADC
+        PIR1bits.ADIF = 0;                                                  // LIMPIEZA DE BANDERA DE INTERRUPCION ADC
     }
 
-    if(INTCONbits.T0IF){        // INTERRUPCION DE TMR0 ACTIVADA
-        cont_led++;                // INCREMENTAR CONTADOR DEL TMR0
+    if(INTCONbits.T0IF){            // INTERRUPCION DE TMR0 ACTIVADA
+        cont_led++;                 // INCREMENTAR CONTADOR DEL TMR0
         
         if (cont_led <= pwm_led){   // COMPARAR VALOR DE CONTADOR CON VALOR DADO POR POTENCIOMETRO
-            fake_pwm = 1;       // SI EL VALOR DEL CONTADOR ES MENOR, ENCENDER EL PUERTO
+            fake_pwm = 1;           // SI EL VALOR DEL CONTADOR ES MENOR O IGUAL, ENCENDER EL PUERTO
         }
         else{
-            fake_pwm = 0;       // SI EL VALOR DEL CONTADOR ES MAYOR O IGUAL, APAGAR EL PUERTO
+            fake_pwm = 0;           // EN CUALQUIER OTRA SITUACION, APAGAR EL PUERTO
         }
-        INTCONbits.T0IF = 0;    // LIMPIAR BANDERA DE INTERRUPCION EN TMR0
-        TMR0 = tmr0_val;        // REINICIAR TMR0
+        INTCONbits.T0IF = 0;        // LIMPIAR BANDERA DE INTERRUPCION EN TMR0
+        TMR0 = tmr0_val;            // REINICIAR TMR0
     }
 }
 
@@ -186,19 +185,21 @@ void main(void) {
     //EJECUCION CONFIG
     setup();
     tmr0_setup();
+    
+    //LOOP PRINCIPAL
     while (1){
         if (ADCON0bits.GO == 0){                // REVISAR SI EL ADC ESTA ENCENDIDO
-            if (ADCON0bits.CHS == 0){
-                ADCON0bits.CHS = 1;        // CAMBIO A CANAL ANALOGICO 1
-                __delay_us(40);
+            if (ADCON0bits.CHS == 0){           // REVISAR SI SE ENCUENTRA EN CANAL ANALOGICO 0
+                ADCON0bits.CHS = 1;             // CAMBIO A CANAL ANALOGICO 1
+                __delay_us(40);                 // TIEMPO DE ESTABILIZACION
             }
-            else if (ADCON0bits.CHS == 1){
-                ADCON0bits.CHS = 2;        // CAMBIO A CANAL ANALOGICO 2
-                __delay_us(40);
+            else if (ADCON0bits.CHS == 1){      // REVISAR SI SE ENCUENTRA EN CANAL ANALOGICO 1
+                ADCON0bits.CHS = 2;             // CAMBIO A CANAL ANALOGICO 2
+                __delay_us(40);                 // TIEMPO DE ESTABILIZACION
             }
-            else if (ADCON0bits.CHS == 2){
-                ADCON0bits.CHS = 0;        // CAMBIO A CANAL ANALOGICO 0
-                __delay_us(40);
+            else if (ADCON0bits.CHS == 2){      // REVISAR SI SE ENCUENTRA EN CANAL ANALOGICO 2
+                ADCON0bits.CHS = 0;             // CAMBIO A CANAL ANALOGICO 0
+                __delay_us(40);                 // TIEMPO DE ESTABILIZACION
             }
             __delay_us(40);                     // TIEMPO DE ESTABILIZACION
             ADCON0bits.GO = 1;                  // INICIADO DE CONVERSION
